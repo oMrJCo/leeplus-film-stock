@@ -1,0 +1,1 @@
+{"name":"leeplus-film-stock","version":"1.0.0","private":true,"type":"module","scripts":{"build":"node scripts/build-film.mjs","test":"node scripts/test-film-adapter.mjs"}}

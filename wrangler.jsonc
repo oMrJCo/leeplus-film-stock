@@ -1,0 +1,8 @@
+{
+ "name":"leeplus-film-stock-api",
+ "main":"worker/index.js",
+ "compatibility_date":"2026-10-20",
+ "compatibility_flags":["nodejs_compat"],
+ "observability":{"enabled":true},
+ "vars":{"APP_ORIGIN":"https://omrjco.github.io","FILM_BRIDGE_URL":"https://dxlngxkuggbgdzmithzx.supabase.co/functions/v1/film-stock-bridge"}
+}

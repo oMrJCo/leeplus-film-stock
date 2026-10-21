@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';import {blank,mutate} from '../worker/domain.js';
+const s=blank(),u={id:'owner',email:'owner@example.com'};s.owner=u.id;const run=(a,p)=>{if(a==='pick'){const o=s.orders.find(o=>o.id===p.order),x=o?.alloc.find(x=>x.id===p.line);if(x&&!x.done&&p.scan===x.box){mutate(s,'verifyPickScan',{order:p.order,line:p.line,scan:p.scan},u);p={...p,scanToken:x.scan.token}}}return mutate(s,a,p,u)};
+run('product',{code:'A',name:'สินค้า A'});const product=s.products[0].id;
+run('lot',{date:'2026-10-01',qty:2});const [a,b]=s.boxes;
+assert.throws(()=>run('approveLot',{lot:a.lot}),/ครบทุกลัง/);
+for(const box of [a,b])run('receive',{box:box.id,items:[{product,qty:50}]});run('approveLot',{lot:a.lot});
+run('order',{items:[{product,qty:60}]});let o=s.orders[0];assert.deepEqual(o.alloc.map(x=>x.qty),[50,10]);
+assert.throws(()=>run('order',{items:[{product,qty:41}]}),/ไม่เพียงพอ/);
+assert.throws(()=>run('pick',{order:o.id,line:o.alloc[0].id,scan:b.id,actual:50}),/ไม่ตรง/);
+run('pick',{order:o.id,line:o.alloc[0].id,scan:a.id,actual:48,reason:'ของไม่พอ'});assert.equal(a.items[0].qty,50);assert.equal(o.alloc[0].review,'pending');
+assert.throws(()=>run('pick',{order:o.id,line:o.alloc[0].id,scan:a.id,actual:48}),/ยืนยันแล้ว/);
+run('pick',{order:o.id,line:o.alloc[1].id,scan:b.id,actual:10});assert.equal(o.status,'open');run('completePick',{order:o.id});assert.equal(o.status,'awaiting_approval');run('approveOrder',{order:o.id});assert.equal(o.status,'completed');
+run('openCount',{});let c=s.counts[0];run('count',{count:c.id,box:a.id,items:[{product,qty:0}]});assert.equal(a.items[0].qty,2);run('closeCount',{count:c.id});run('approveCount',{count:c.id});assert.equal(a.items[0].qty,0);assert.equal(b.items[0].qty,40);
+assert.throws(()=>mutate(s,'product',{code:'B',name:'B'},{id:'stranger',email:'stranger@example.com'}),/ไม่มีสิทธิ์/);
+run('member',{email:'staff@example.com',role:'staff'});assert.throws(()=>mutate(s,'lot',{date:'2026-10-20',qty:1},{id:'staff',email:'staff@example.com'}),/เฉพาะแอดมิน/);
+console.log('PASS: FIFO, reservation, approval gates, short pick, duplicate pick, zero count, missing boxes, role authorization');
