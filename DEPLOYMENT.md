@@ -1,9 +1,13 @@
-# Deployment checklist
+# Deployment status
 
-1. Create GitHub repository `oMrJCo/leeplus-film-stock` and upload this source.
-2. Enable GitHub Pages using GitHub Actions; the supplied workflow publishes only `public/`.
-3. Verify `/leeplus-film-stock/` and `/leeplus-film-stock/staff/` on real desktop/mobile browsers.
-4. Confirm login using existing registered phones and pending task visibility.
-5. Reconcile any work done in the old Site after the snapshot before making the new deployment authoritative.
+Source is published at https://github.com/oMrJCo/leeplus-film-stock (2026-10-21).
 
-The new Worker and isolated Supabase tables are already deployed; repository creation/Pages publishing is pending. The old Site remains at https://leeplus-warehouse.beigetide16.chatgpt.site .
+- Worker and isolated film_stock_* Supabase tables: deployed and snapshot imported.
+- Build and adapter integration tests: passed, including FIFO, scanning, admin final deduction, CORS and independent sessions.
+- GitHub Pages: NOT LIVE YET. First workflow failed at configure-pages: Resource not accessible by integration. Repository administrator must set Settings > Pages > Build and deployment > Source to GitHub Actions once, then rerun the workflow.
+- After activation, verify admin and staff routes and phone login on real browsers before cutover.
+- Current environment HTTP probe to workers.dev returned Cloudflare 1010; prior authenticated API checks passed. Browser access must be verified before acceptance.
+
+Snapshot: 2026-10-20 23:30:36 Bangkok, source revision 83. Reconcile changes in the old Site since that time before cutover. Do not overwrite either database blindly. The two deployments do not synchronize.
+
+Original fallback remains https://leeplus-warehouse.beigetide16.chatgpt.site .
