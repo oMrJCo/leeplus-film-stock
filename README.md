@@ -27,3 +27,9 @@ The initial copy was exported from the original Site at 2026-10-20T16:30:36.452Z
 Database writes use an optimistic revision lease and one PostgreSQL transaction. Related product/carton/order/count/audit records are committed together. RLS is enabled on every film table; anon/authenticated roles have no table or function access. Existing non-film LEEPLUS tables are not modified.
 
 For a full backup, use an authenticated backend transport to call `film_stock_read` and retain the result privately. Import only into a confirmed empty destination; the migration helper refuses overwrites. Do not commit inventory exports, phone numbers, or session tokens.
+
+## Owner corrections
+
+The existing owner identity alone can delete mistaken records through the owner data menu. Admin and staff permissions remain unchanged. Deletions require a reason and exact record confirmation; the original record and actor remain archived. Stock-affecting records use compensating quantities, with dependent and later transactions requiring removal first. Historical audit is preserved. Carton, lot, order and count identifiers are not reused. No live records were deleted while developing this feature.
+
+Run `npm test` for owner authorization, rollback and retained workflow checks. Deploy the matching Worker before publishing the new Pages frontend. Owner correction code includes dedicated authorization and compensating stock transactions; no database schema migration is needed.
