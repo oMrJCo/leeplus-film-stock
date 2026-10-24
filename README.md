@@ -33,3 +33,7 @@ For a full backup, use an authenticated backend transport to call `film_stock_re
 The existing owner identity alone can delete mistaken records through the owner data menu. Admin and staff permissions remain unchanged. Deletions require a reason and exact record confirmation; the original record and actor remain archived. Stock-affecting records use compensating quantities, with dependent and later transactions requiring removal first. Historical audit is preserved. Carton, lot, order and count identifiers are not reused. No live records were deleted while developing this feature.
 
 Run `npm test` for owner authorization, rollback and retained workflow checks. Deploy the matching Worker before publishing the new Pages frontend. Owner correction code includes dedicated authorization and compensating stock transactions; no database schema migration is needed.
+
+## Editing pick orders
+
+Admins and owners can edit product lines and requested totals while an order is open or awaiting final approval. Completed/cancelled orders are immutable through this operation. Picked allocations and actual quantities are preserved; requests cannot be reduced below picked totals. The same FIFO creation planner reallocates only outstanding quantities, accounting for other orders and held picked stock. New pending allocation IDs invalidate stale scans. Adding pending work reopens an awaiting-approval order for staff. Edit reasons and before/after items are recorded, while final stock deduction still requires admin approval.

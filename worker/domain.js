@@ -27,6 +27,23 @@ else if(a==='confirmLabels'){const l=need(s.lots.find(l=>l.id===p.lot),'ไม�
 else if(a==='receive'){const b=box();need(b.status==='pending'||b.status==='review','ลังนี้อนุมัติแล้ว');need(Array.isArray(p.items)&&p.items.length,'เพิ่มสินค้า');const seen=new Set;for(const x of p.items){need(s.products.some(y=>y.id===x.product),'ไม่พบสินค้าในทะเบียน');qty(x.qty);need(!seen.has(x.product),'สินค้าซ้ำในลัง');seen.add(x.product)}b.items=p.items.map(x=>({product:x.product,qty:x.qty}));b.status='review';}
 else if(a==='approveLot'){const l=need(s.lots.find(l=>l.id===p.lot),'ไม่พบล็อต');need(l.status==='draft','ล็อตอนุมัติแล้ว');const bs=s.boxes.filter(b=>b.lot===l.id);need(bs.length&&bs.every(b=>b.status==='review'),'ต้องบันทึกครบทุกลังก่อนอนุมัติ');l.status='approved';l.approvedAt=new Date().toISOString();l.approvedBy=actor;l.receivedSnapshot=Object.fromEntries(bs.map(b=>[b.id,b.items.map(x=>({...x}))]));bs.forEach(b=>b.status='ready');}
 else if(a==='order'){need(p.items?.length,'ระบุสินค้า');const seen=new Set,alloc=[];for(const line of p.items){qty(line.qty);need(!seen.has(line.product),'สินค้าซ้ำ');seen.add(line.product);let left=line.qty;const bs=s.boxes.filter(b=>b.status==='ready'&&!locked(b.id)).sort((a,b)=>{const la=s.lots.find(l=>l.id===a.lot),lb=s.lots.find(l=>l.id===b.lot);return la.date.localeCompare(lb.date)||la.created.localeCompare(lb.created)||a.id.localeCompare(b.id)});for(const b of bs){const x=b.items.find(x=>x.product===line.product);const available=(x?.qty||0)-reserved(b.id,line.product);if(available>0&&left){const n=Math.min(left,available);alloc.push({id:id(),box:b.id,product:line.product,qty:n,done:false});left-=n}}need(!left,'สินค้าพร้อมเบิกไม่เพียงพอ');}const orderTime=new Date();s.orders.push({id:nextOrderId(s,orderTime),items:p.items,alloc,status:'open',created:orderTime.toISOString(),by:actor});}
+else if(a==='editOrder'){
+ const o=need(s.orders.find(o=>o.id===p.order),'ไม่พบใบเบิก');need(['open','awaiting_approval'].includes(o.status),'แก้ไขได้เฉพาะใบเบิกที่ยังไม่ยืนยันตัดสต็อก');
+ need(Array.isArray(p.items)&&p.items.length,'ระบุสินค้าอย่างน้อย 1 รายการ');
+ const reason=String(p.reason||'').trim();need(reason.length>=3&&reason.length<=500,'ระบุเหตุผลการแก้ไข 3–500 ตัวอักษร');
+ const totals=new Map;for(const x of p.items){qty(x.qty);need(s.products.some(y=>y.id===x.product),'ไม่พบสินค้าในทะเบียน');need(!totals.has(x.product),'สินค้าซ้ำ');totals.set(x.product,x.qty)}
+ const done=o.alloc.filter(x=>x.done),picked=new Map;
+ for(const x of done)picked.set(x.product,(picked.get(x.product)||0)+(x.actual||0));
+ for(const [product,n]of picked)need((totals.get(product)||0)>=n,'ลดหรือลบต่ำกว่ายอดที่หยิบแล้วไม่ได้: '+(s.products.find(x=>x.id===product)?.code||product)+' หยิบแล้ว '+n+' ชิ้น');
+ const remaining=p.items.map(x=>({product:x.product,qty:x.qty-(picked.get(x.product)||0)})).filter(x=>x.qty>0);
+ // Use the same FIFO planner as creation, releasing only this order's unpicked reservations.
+ const planning=structuredClone(s),copy=planning.orders.find(x=>x.id===o.id);copy.alloc=copy.alloc.filter(x=>x.done);
+ let pending=[];if(remaining.length){mutate(planning,'order',{items:remaining},user);pending=planning.orders.at(-1).alloc;}
+ const at=new Date().toISOString();o.edits??=[];o.edits.push({before:structuredClone(o.items),after:p.items.map(x=>({product:x.product,qty:x.qty})),reason,by:actor,byName:user.name||'',at});
+ o.items=p.items.map(x=>({product:x.product,qty:x.qty}));o.alloc=[...done,...pending];
+ if(pending.length){o.status='open';delete o.submittedAt;delete o.submittedBy;delete o.cancelledRemainder;}
+ o.updatedAt=at;o.updatedBy=actor;result={order:o.id,replanned:pending.length};
+}
 else if(a==='cancelOrder'){const o=need(s.orders.find(o=>o.id===p.order),'ไม่พบใบเบิก');need(o.status==='open','ใบเบิกปิดแล้ว');o.alloc.filter(x=>!x.done).forEach(x=>{x.done=true;x.actual=0;x.reason='ยกเลิกโดยแอดมิน'});o.status=o.alloc.some(x=>x.deferredDeduction&&!x.stockDeducted&&x.actual>0)?'awaiting_approval':'cancelled';o.cancelledRemainder=true;}
 else if(a==='verifyPickScan'){const o=need(s.orders.find(o=>o.id===p.order),'ไม่พบใบเบิก'),x=need(o.alloc.find(x=>x.id===p.line),'ไม่พบรายการ');need(o.status==='open'&&!x.done,'รายการนี้ปิดแล้ว');need(p.scan===x.box,'สแกนผิดลัง กรุณาสแกนลัง '+x.box);need(!locked(x.box),'ลังอยู่ระหว่างตรวจนับ');x.scan={token:id(),user:user.id,by:actor,at:new Date().toISOString()};}
 else if(a==='completePick'){const o=need(s.orders.find(o=>o.id===p.order),'ไม่พบใบเบิก');need(o.status==='open','ใบเบิกปิดแล้ว');need(o.alloc.length&&o.alloc.every(x=>x.done),'ต้องสแกนและบันทึกให้ครบทุกใบรายการก่อน');o.status='awaiting_approval';o.submittedAt=new Date().toISOString();o.submittedBy=actor;}
